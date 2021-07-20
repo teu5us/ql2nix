@@ -45,7 +45,7 @@ let
     echo "Copying generated files"
     cp --no-preserve=mode --remove-destination -v -f qlDist.nix $out/
   '';
-  mkNixlispBundle = import ./mkNixlispBundle.nix pkgs;
+  mkNixlispBundle = import ./ql2nix/mkNixlispBundle.nix pkgs;
   bundle = mkNixlispBundle dependencies distfile;
   # Derivation defining an environment for use with nix-shell.
 in with pkgs; [ bundle ] ++ dependencies ++ [ curl lispPackages.clwrapper generate-dist ]
