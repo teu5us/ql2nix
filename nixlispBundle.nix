@@ -19,7 +19,8 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-{ nixlispDist, quicklisp, clwrapper, writeTextFile, mkDerivation }:
+{ dependencies ? [], nixlispDist, quicklisp, clwrapper, writeTextFile
+, mkDerivation }:
 let
   bundler = writeTextFile {
     name = "bundler.lisp";
@@ -48,6 +49,7 @@ in mkDerivation rec {
   name = "nixlisp-bundle-${version}";
   version = "1.0.0";
   propagatedBuildInputs = [ clwrapper ];
+  buildInputs = dependencies;
   unpackPhase = "true";
   buildPhase = ''
     mkdir -p quicklisp/tmp
@@ -100,12 +102,19 @@ in mkDerivation rec {
     # will error if loaded for the first time from a read-only store
     # directory.
 
-    cd $out/lib/common-lisp/bundle/
+    cd $out/lib/common-lisp/
+    mkdir asd-farm
+    cd asd-farm
+    for file in `find ../bundle/ -name '*.asd'`; do ln -s "$file" ./; done
+
+    cd ../bundle/
     common-lisp.sh <<EOF
       (format t "~&Loading systems in bundle to allow initialization..~%")
       (setf *debugger-hook* (lambda (&rest args) (declare (ignore args)) (sb-debug:print-backtrace) (uiop:quit 1)))
 
       (load "bundle.lisp")
+
+      (push "$out/lib/common-lisp/asd-farm/" asdf:*central-registry*)
 
       (loop with system-index.txt = (open "system-index.txt")
             for system-path = (read-line system-index.txt nil)
@@ -113,5 +122,7 @@ in mkDerivation rec {
             do (asdf:load-system (pathname-name system-path)))
       (uiop:quit 0)
     EOF
+
+    rm -rf ../asd-farm
   '';
 }
