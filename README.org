@@ -1,0 +1,61 @@
+#+TITLE: QL2NIX PROJECT
+
+This repository provides a ~nix~ function built around [[https://github.com/SquircleSpace/ql2nix][SquircleSpace's ql2nix]],
+that can be used to build a Common Lisp environment.
+
+The function accepts a set of ~pkgs~, ~dependencies~, ~dists~,
+~quicklisp-packages~, ~dirs~ and ~trees~ where:
+
+1. ~pkgs~ is a package set
+2. ~dependencies~ is a list of non-lisp packages, that required Common Lisp
+   systems depend on, and other stuff one might need
+3. ~dists~ is a list of quicklisp-compatible dists
+4. ~quicklisp-packages~ is a list of required Common Lisp systems
+5. ~dirs~ is a list of directories to be added to ~asdf:*central-registry*~
+6. ~trees~ is a list of directories, subdirectories of which will be added to
+   ~asdf:*central-registry*~
+
+Common Lisp dependencies for systems in ~dirs~ or ~trees~ need to be provided
+explicitly in ~quicklisp-packages~.
+
+Run ~lisp~ inside nix-shell to run sbcl.
+
+Example usage:
+
+#+begin_src nix
+{ pkgs ? import <nixpkgs> {} }:
+
+with pkgs;
+
+let
+  project-name = "social-rating-bot";
+  genLispInputs = import (builtins.fetchTarball
+    { url = "https://github.com/teu5us/ql2nix/archive/refs/heads/project.tar.gz";
+      sha256 = "1wvxc7sdii6nqr126pcf6r6pb8lfmvbiqsnzv7p0322x0p9r8hf0";
+    });
+  lisp-bundle = genLispInputs {
+    inherit pkgs;
+    dependencies = [
+      openssl.out sbcl
+    ];
+    dists = [
+      "http://dist.ultralisp.org/"
+    ];
+    quicklisp-packages = [
+      "cl-telegram-bot"
+    ];
+    trees = [
+      "${builtins.getEnv "HOME"}/common-lisp"
+    ];
+    dirs = [
+      "${builtins.getEnv "HOME"}/common-lisp/${project-name}"
+    ];
+  };
+in
+mkShell {
+  buildInputs = [
+    (lisp-bundle ./qlDist.nix)
+  ];
+  LD_LIBRARY_PATH=lib.makeLibraryPath [ openssl.out ];
+}
+#+end_src
