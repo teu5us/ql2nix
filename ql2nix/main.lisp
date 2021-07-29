@@ -329,11 +329,7 @@ Options:
       (let ((ql-systems (make-hash-table :test 'equal))
             (ql-releases (make-hash-table :test 'equal)))
         (dolist (system-name system-names)
-          (handler-case
-              (quickload system-name)
-            (quicklisp-client:system-not-found (c)
-              (declare (ignorable c))
-              (warn "System not available in quicklisp or installed dists: ~A" (string-upcase system-name)))))
+          (quickload system-name))
 
         (loop :for system :being :the :hash-keys :of *touched-systems* :do
           (block continue
