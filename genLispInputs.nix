@@ -45,9 +45,10 @@ let
   load-trees = writeScript "load-trees" ''
     (defun fix-dirname (str)
       (let ((slash? (equal #\/ (aref (reverse str) 0))))
-        (if slash?
-            str
-            (concatenate 'string str "/"))))
+        (pathname
+          (if slash?
+              str
+              (concatenate 'string str "/")))))
 
     (dolist (tree (list ${concatStringList trees}))
       (let* ((tree- (fix-dirname tree)))
