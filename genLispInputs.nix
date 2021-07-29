@@ -1,15 +1,37 @@
-{ pkgs, dependencies ? [], quicklisp-packages ? [], dists ? [], trees ? [], dirs ? [] }:
+{ pkgs, dependencies ? [], quicklisp-packages ? [], dists ? [], local-systems ? {} }:
 distfile:
   
 with pkgs;
 
 let
+  local-system-paths-raw = lib.attrsets.attrValues local-systems;
+in
+
+assert lib.lists.all builtins.isPath local-system-paths-raw;
+
+let
   ql2nix-src = lib.cleanSource ./ql2nix;
+  local-system-names = lib.attrsets.attrNames local-systems;
+  local-system-paths = lib.lists.map toString local-system-paths-raw;
   concatStringList = lst: lib.concatMapStringsSep " " (x: ''"'' + x + ''"'') lst;
+  load-dirs = writeScript "load-dirs.lisp" ''
+    (defun fix-dirname (str)
+      (let ((slash? (equal #\/ (aref (reverse str) 0))))
+        (pathname
+          (if slash?
+              str
+              (concatenate 'string str "/")))))
+
+    (dolist (dir (list ${concatStringList local-system-paths}))
+      (pushnew (fix-dirname dir) asdf:*central-registry*))
+  '';
   build = writeScript "build.lisp" ''
     ;; Setup quicklisp
     (load "quicklisp.lisp")
     (quicklisp-quickstart:install)
+
+    ;; Load local systems
+    (load "${load-dirs}")
 
     ;; Load ql2nix from source
     (load "${ql2nix-src}/main.lisp")
@@ -17,8 +39,14 @@ let
     (dolist (dist '(${concatStringList dists}))
       (ql-dist:install-dist dist :prompt nil))
 
+    (dolist (dir '(${concatStringList local-system-paths}))
+      (pushnew (fix-dirname dir) ql:*local-project-directories*))
+
     ;; Generate dependency definitions
-    (ql2nix:main (list "--nixlisp-lib" ${concatStringList quicklisp-packages}))
+    (ql2nix:main `("--nixlisp-lib"
+                   ${concatStringList (lib.lists.unique
+                     (quicklisp-packages ++ local-system-names))}))
+
     (quit)
   '';
   generate-dist = writeScriptBin "generate-dist" ''
@@ -42,25 +70,9 @@ let
     echo "Copying generated files"
     cp --no-preserve=mode --remove-destination -v -f qlDist.nix $out/
   '';
-  load-trees = writeScript "load-trees" ''
-    (defun fix-dirname (str)
-      (let ((slash? (equal #\/ (aref (reverse str) 0))))
-        (pathname
-          (if slash?
-              str
-              (concatenate 'string str "/")))))
-
-    (dolist (tree (list ${concatStringList trees}))
-      (let* ((tree- (fix-dirname tree)))
-        (dolist (dir (uiop:subdirectories tree-))
-          (pushnew dir asdf:*central-registry*))))
-
-    (dolist (dir (list ${concatStringList dirs}))
-      (pushnew (fix-dirname dir) asdf:*central-registry*))
-  '';
   lisp = writeScriptBin "lisp" ''
     #!${bash}/bin/bash
-    common-lisp.sh --load ${load-trees}
+    common-lisp.sh --load ${load-dirs}
   '';
   mkNixlispBundle = import ./ql2nix/mkNixlispBundle.nix pkgs;
   bundle = mkNixlispBundle dependencies distfile;
