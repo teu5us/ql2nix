@@ -11,17 +11,17 @@ distfile:
 with pkgs;
 
 let
-  local-systems = local-systems // lib.attrsets.optionalAttrs
+  local-systems-with-project = local-systems // lib.attrsets.optionalAttrs
     (builtins.pathExists (toString system-path + "/" + system-name + ".asd"))
     builtins.listToAttrs [ (lib.attrsets.nameValuePair system-name system-path) ];
-  local-system-paths-raw = lib.attrsets.attrValues local-systems;
+  local-system-paths-raw = lib.attrsets.attrValues local-systems-with-project;
 in
 
 assert lib.lists.all builtins.isPath local-system-paths-raw;
 
 let
   ql2nix-src = lib.cleanSource ./ql2nix;
-  local-system-names = lib.attrsets.attrNames local-systems;
+  local-system-names = lib.attrsets.attrNames local-systems-with-project;
   local-system-paths = lib.lists.map toString local-system-paths-raw;
   concatStringList = lst: lib.concatMapStringsSep " " (x: ''"'' + x + ''"'') lst;
   load-dirs = writeScript "load-dirs.lisp" ''
