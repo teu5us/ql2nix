@@ -20,7 +20,7 @@
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 { writeTextFile, fetchurl, lib, stdenv, lispPackages, ... }:
-qlDist:
+{ qlDist, buildInputs ? [], envVars ? {} }:
 let
   concatMapStrings = lib.concatMapStrings;
   mkDerivation = stdenv.mkDerivation;
@@ -33,6 +33,6 @@ let
              else { qlReleases = {}; qlSystems = {}; };
   };
   nixlispBundle = import ./nixlispBundle.nix {
-    inherit nixlispDist quicklisp clwrapper writeTextFile mkDerivation;
+    inherit buildInputs envVars nixlispDist quicklisp clwrapper writeTextFile mkDerivation;
   };
 in nixlispBundle

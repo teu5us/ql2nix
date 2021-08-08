@@ -19,7 +19,7 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-{ nixlispDist, quicklisp, clwrapper, writeTextFile, mkDerivation }:
+{ buildInputs, envVars, nixlispDist, quicklisp, clwrapper, writeTextFile, mkDerivation }:
 let
   bundler = writeTextFile {
     name = "bundler.lisp";
@@ -44,7 +44,10 @@ let
       (uiop:quit 0)
     '';
   };
-in mkDerivation rec {
+in
+with envVars;
+mkDerivation rec {
+  inherit buildInputs;
   name = "nixlisp-bundle-${version}";
   version = "1.0.0";
   propagatedBuildInputs = [ clwrapper ];
